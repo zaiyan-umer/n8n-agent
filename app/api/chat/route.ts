@@ -4,6 +4,7 @@ import { retrieveContext } from '../../../services/vector-store/retriever';
 import { generateWorkflow } from '../../../services/generator/workflow';
 import { verifySyntax } from '../../../services/verification/syntax';
 import { verifyWithCritic } from '../../../services/verification/llm-critic';
+import { deployWorkflow } from '../../../services/deployment/deploy';
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +44,14 @@ export async function POST(req: Request) {
 
       // Passed all checks
       finalWorkflow = workflowJson;
+
+      // 6. Deploy Workflow
+      const deployment = await deployWorkflow(finalWorkflow);
+      if (!deployment.success) {
+        console.warn(`Attempt ${attempts}: Deployment failed.`);
+        finalWorkflow = null;
+        continue;
+      }
     }
 
     if (!finalWorkflow) {
