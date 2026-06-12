@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
+import { deployWorkflow } from '../../../services/deployment/deploy';
+import { generateWorkflow } from '../../../services/generator/workflow';
 import { parseIntent } from '../../../services/parser/intent';
 import { retrieveContext } from '../../../services/vector-store/retriever';
-import { generateWorkflow } from '../../../services/generator/workflow';
-import { verifySyntax } from '../../../services/verification/syntax';
 import { verifyWithCritic } from '../../../services/verification/llm-critic';
-import { deployWorkflow } from '../../../services/deployment/deploy';
+import { verifySyntax } from '../../../services/verification/syntax';
 
 export async function POST(req: Request) {
   try {
@@ -12,7 +12,9 @@ export async function POST(req: Request) {
     const { message } = body;
 
     // 1. Parse Intent
-    const { intent, predictedNodes } = await parseIntent(message);
+    const { intent, predictedNodes, actionType } = await parseIntent(message);
+
+    // console.log(intent, predictedNodes, actionType);
 
     // 2. Vector DB Lookup
     const contextChunks = await retrieveContext(predictedNodes, intent);
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
 
     while (attempts < maxAttempts && !finalWorkflow) {
       attempts++;
-      
+
       // 3. Generate Workflow
       const workflowJson = await generateWorkflow(message, intent, contextChunks);
 

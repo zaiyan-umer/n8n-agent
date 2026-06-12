@@ -1,4 +1,21 @@
-// TODO: Implement intent parser using AI SDK
+import { google } from "@ai-sdk/google";
+import { generateText, Output } from "ai";
+import { z } from "zod";
+import { INTENT_PARSER_PROMPT } from "../../utils/prompts";
+
 export async function parseIntent(message: string) {
-  return { intent: "Parsed intent stub", predictedNodes: ["Webhook"] };
+  const { output } = await generateText({
+    model: google(process.env.MODEL_NAME || "gemini-3.1-flash-lite-preview"),
+    system: INTENT_PARSER_PROMPT,
+    prompt: message,
+    output: Output.object({
+      schema: z.object({
+        intent: z.string().describe("A clear, summarized description of the user's goal."),
+        predictedNodes: z.array(z.string()).describe("An array of standard n8n node names required for this workflow."),
+        actionType: z.enum(["CREATE_NEW", "UPDATE_EXISTING"]).describe("Whether to create a new workflow or update an existing one."),
+      })
+    }),
+  });
+
+  return output;
 }
