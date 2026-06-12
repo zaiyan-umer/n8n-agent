@@ -13,12 +13,7 @@ export const nodeChunks = pgTable(
     groupType: text("group_type"),
     docsUrl: text("docs_url"),
     chunkText: text("chunk_text").notNull(),
-    embedding: vector("embedding", { dimensions: 1536 }),
+    embedding: vector("embedding", { dimensions: 3072 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
-  (table) => [
-    index("node_chunks_embedding_idx")
-      .using("ivfflat", table.embedding.op("vector_cosine_ops"))
-      .with({ lists: 100 }),
-  ]
 );

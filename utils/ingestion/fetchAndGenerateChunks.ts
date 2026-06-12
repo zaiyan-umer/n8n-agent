@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { EmbedChunk } from "./types";
 
 /**
@@ -89,44 +87,5 @@ export function chunkByOperation(node: any): EmbedChunk[] {
     });
   }
 
-  return chunks;
-}
-
-/**
- * Reads n8n_nodes.json from the workspace root and returns an array of relevant chunks.
- */
-export function getRelevantChunks(): EmbedChunk[] {
-  const filePath = path.join(process.cwd(), "n8n_nodes.json");
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`n8n_nodes.json not found at ${filePath}`);
-  }
-
-  const rawData = fs.readFileSync(filePath, "utf8");
-  const rawNodes = JSON.parse(rawData);
-
-  const chunks: EmbedChunk[] = [];
-
-  for (const item of rawNodes) {
-    const attr = item.attributes;
-    // Skip hidden or empty node attributes
-    if (!attr || attr.hidden) {
-      continue;
-    }
-
-    const node = {
-      nodeType: attr.name,
-      displayName: attr.displayName,
-      description: attr.description,
-      properties: attr.properties?.data || attr.properties || [],
-    };
-
-    if (!node.nodeType || !node.displayName) {
-      continue;
-    }
-
-    const nodeChunks = chunkByOperation(node);
-    chunks.push(...nodeChunks);
-  }  
-  
   return chunks;
 }
