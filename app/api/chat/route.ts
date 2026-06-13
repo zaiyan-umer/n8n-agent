@@ -23,29 +23,32 @@ export async function POST(req: Request) {
     let finalWorkflow = null;
     let attempts = 0;
     const maxAttempts = 3;
+    let feedback = "";
+    let brokenWorkflow: any = null;
 
     while (attempts < maxAttempts && !finalWorkflow) {
       attempts++;
 
       // 3. Generate Workflow
-      const workflowJson = await generateWorkflow(message, intent, predictedNodes, contextChunks);
+      const workflowJson = await generateWorkflow(message, intent, predictedNodes, contextChunks, feedback, brokenWorkflow);
 
-      console.log(workflowJson);
-
-      return;
-      
+      require('fs').writeFileSync('debug-workflow.json', JSON.stringify(workflowJson, null, 2));
 
       // 4. Syntax Verification
       const syntaxCheck = await verifySyntax(workflowJson);
       if (!syntaxCheck.isValid) {
-        console.warn(`Attempt ${attempts}: Syntax verification failed.`);
+        console.warn(`Attempt ${attempts}: Syntax verification failed. Error: ${syntaxCheck.error}`);
+        feedback = `Syntax Error: ${syntaxCheck.error}`;
+        brokenWorkflow = workflowJson;
         continue;
       }
 
       // 5. LLM Critic Verification
       const criticCheck = await verifyWithCritic(intent, workflowJson);
       if (!criticCheck.isApproved) {
-        console.warn(`Attempt ${attempts}: Critic verification failed.`);
+        console.warn(`Attempt ${attempts}: Critic verification failed. Feedback: ${criticCheck.feedback}`);
+        feedback = `Logic Feedback: ${criticCheck.feedback}`;
+        brokenWorkflow = workflowJson;
         continue;
       }
 
