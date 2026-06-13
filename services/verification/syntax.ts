@@ -17,6 +17,7 @@ export async function verifySyntax(workflowJson: any) {
     }
 
     // 2. Check for dangling wires (connections referencing non-existent nodes)
+    const connectedNodes = new Set<string>();
     if (connections && typeof connections === "object") {
       for (const [sourceNode, outputData] of Object.entries(connections)) {
         if (!nodeNames.has(sourceNode)) {
@@ -29,11 +30,24 @@ export async function verifySyntax(workflowJson: any) {
           if (Array.isArray(outputArray)) {
             for (const connectionItem of outputArray) {
               const targetNode = connectionItem.node;
-              if (targetNode && !nodeNames.has(targetNode)) {
-                return { isValid: false, error: `Connection target node "${targetNode}" does not exist.` };
+              if (targetNode) {
+                if (!nodeNames.has(targetNode)) {
+                  return { isValid: false, error: `Connection target node "${targetNode}" does not exist.` };
+                }
+                connectedNodes.add(sourceNode);
+                connectedNodes.add(targetNode);
               }
             }
           }
+        }
+      }
+    }
+
+    // 3. Check for floating/disconnected nodes
+    if (nodeNames.size > 1) {
+      for (const nodeName of nodeNames) {
+        if (!connectedNodes.has(nodeName)) {
+          return { isValid: false, error: `Node "${nodeName}" is completely disconnected.` };
         }
       }
     }
