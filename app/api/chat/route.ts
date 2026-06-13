@@ -32,8 +32,6 @@ export async function POST(req: Request) {
       // 3. Generate Workflow
       const workflowJson = await generateWorkflow(message, intent, predictedNodes, contextChunks, feedback, brokenWorkflow);
 
-      require('fs').writeFileSync('debug-workflow.json', JSON.stringify(workflowJson, null, 2));
-
       // 4. Syntax Verification
       const syntaxCheck = await verifySyntax(workflowJson);
       if (!syntaxCheck.isValid) {
@@ -44,7 +42,7 @@ export async function POST(req: Request) {
       }
 
       // 5. LLM Critic Verification
-      const criticCheck = await verifyWithCritic(intent, workflowJson);
+      const criticCheck = await verifyWithCritic(intent, predictedNodes, workflowJson);
       if (!criticCheck.isApproved) {
         console.warn(`Attempt ${attempts}: Critic verification failed. Feedback: ${criticCheck.feedback}`);
         feedback = `Logic Feedback: ${criticCheck.feedback}`;
@@ -54,6 +52,8 @@ export async function POST(req: Request) {
 
       // Passed all checks
       finalWorkflow = workflowJson;
+
+      require('fs').writeFileSync('debug-workflow.json', JSON.stringify(finalWorkflow, null, 2));
 
       // 6. Deploy Workflow
       const deployment = await deployWorkflow(finalWorkflow);

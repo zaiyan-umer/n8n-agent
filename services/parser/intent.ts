@@ -10,7 +10,7 @@ Laminar.initialize({
 
 export async function parseIntent(message: string) {
   const { output } = await generateText({
-    model: google(process.env.MODEL_NAME || "gemini-3.1-flash-lite-preview"),
+    model: google(process.env.GENERAL_MODEL || "gemini-3.1-flash-lite-preview"),
     system: INTENT_PARSER_PROMPT,
     prompt: message,
     output: Output.object({

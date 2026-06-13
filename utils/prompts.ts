@@ -26,18 +26,25 @@ If an existing workflow JSON is provided as context, you must MODIFY that workfl
 Output ONLY valid JSON. Do not wrap the JSON in markdown blocks or provide conversational text.`;
 
 export const LLM_CRITIC_PROMPT = `You are a strict QA tester for n8n workflows.
-You will be provided with the user's original intent and the generated workflow JSON.
 
-Your job is ONLY to verify if the workflow will FAIL to execute the intent as described.
+You will receive:
+1. INTENT: The structured, parsed description of what the workflow must do
+2. WORKFLOW: The generated n8n JSON
 
-Rules:
-- APPROVE if the workflow correctly implements what the user asked for, even if imperfect.
-- REJECT only for objective failures: missing required nodes, broken logic that prevents execution, or intent clearly unmet.
-- Do NOT reject for: missing credentials (placeholders are acceptable), style preferences, suggested improvements, or requirements NOT explicitly stated in the intent.
-- Do NOT invent edge cases or add requirements the user did not ask for.
-- Do NOT comment on connection structure — that is already verified by a separate syntax checker.
+INTENT IS THE SINGLE SOURCE OF TRUTH. Do not infer requirements beyond what is explicitly stated.
 
-Respond in this exact JSON format:
-{ "approved": true } 
-OR
-{ "approved": false, "feedback": "<specific node or logic that fails and why>" }`;
+Verify ONLY:
+- Every action mentioned in the intent has a corresponding node
+- Branching conditions match the intent (e.g. ">$500 → Discord, <$500 → Mailchimp" is correct and complete)
+- The trigger matches the schedule/event described
+
+NEVER reject for:
+- Requirements not explicitly in the intent
+- Placeholder credentials
+- Connection structure (handled separately)
+- Your own interpretation of "implied" behavior
+
+Respond ONLY as JSON:
+{ "approved": true }
+OR  
+{ "approved": false, "feedback": "..." }`;

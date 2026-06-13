@@ -4,9 +4,10 @@ import { z } from "zod";
 import { LLM_CRITIC_PROMPT } from "../../utils/prompts";
 import { getTracer } from '@lmnr-ai/lmnr';
 
-export async function verifyWithCritic(intent: string, workflowJson: any) {
+export async function verifyWithCritic(intent: string, predictedNodes: string[], workflowJson: any) {
   const prompt = `
 User Intent: ${intent}
+ROUTING RULES: ${predictedNodes.join(" → ")}
 
 Generated Workflow JSON:
 ${JSON.stringify(workflowJson, null, 2)}
@@ -15,7 +16,7 @@ Review the workflow above. Does it perfectly solve the user's intent? Are there 
   `.trim();
 
   const { output } = await generateText({
-    model: google(process.env.MODEL_NAME || "gemini-3.1-flash-lite-preview"),
+    model: google(process.env.CRITIC_MODEL || "gemini-2.5-flash"),
     system: LLM_CRITIC_PROMPT,
     prompt: prompt,
     output: Output.object({
