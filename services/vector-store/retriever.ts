@@ -58,7 +58,7 @@ export async function retrieveContext(
           similarity,
         })
         .from(nodeChunks)
-        .where(and(eq(nodeChunks.nodeType, nodeType), gt(similarity, threshold)))
+        .where(and(eq(nodeChunks.displayName, nodeType), gt(similarity, threshold)))
         .orderBy((t) => desc(t.similarity))
         .limit(limit);
     });

@@ -3,8 +3,9 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { WORKFLOW_GENERATOR_PROMPT } from "../../utils/prompts";
 import { RetrievedChunk } from "../vector-store/retriever";
+import { getTracer } from '@lmnr-ai/lmnr';
 
-export async function generateWorkflow(message: string, intent: string, context: RetrievedChunk[]) {
+export async function generateWorkflow(message: string, intent: string, predictedNodes: string[], context: RetrievedChunk[]) {
   // Format the retrieved technical documentation for the LLM prompt
   const contextString = context
     .map((c) => {
@@ -16,6 +17,7 @@ export async function generateWorkflow(message: string, intent: string, context:
   const fullPrompt = `
 User Message: ${message}
 Parsed Intent: ${intent}
+Predicted Nodes: ${predictedNodes.join(", ")}
 
 Technical Context (Available Node Documentation):
 ${contextString}
@@ -23,17 +25,25 @@ ${contextString}
 Generate a complete, valid n8n workflow JSON based on this context.
   `.trim();
 
-  const { output } = await generateText({
-    model: google(process.env.MODEL_NAME || "gemini-3.1-flash-lite-preview"),
+  const { text } = await generateText({
+    model: google(process.env.WORKFLOW_MODEL || "gemini-2.5-flash"),
     system: WORKFLOW_GENERATOR_PROMPT,
     prompt: fullPrompt,
-    output: Output.object({
-      schema: z.object({
-        nodes: z.array(z.record(z.string(), z.any())).describe("Array of n8n node objects defining the workflow steps."),
-        connections: z.record(z.string(), z.any()).describe("Object defining the routing connections between the nodes."),
-      }),
-    }),
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: 'workflow_generator',
+      tracer: getTracer()
+    }
   });
 
-  return output;
+  // Extract JSON block if the model wraps it in markdown
+  const jsonMatch = text.match(/```(?:json)?\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);
+  const jsonStr = jsonMatch ? jsonMatch[0].replace(/^```(?:json)?\n/, '').replace(/\n```$/, '') : text;
+  
+  try {
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    console.error("Failed to parse workflow JSON:", text);
+    throw new Error("Model failed to output valid JSON.");
+  }
 }

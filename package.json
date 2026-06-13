@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.81",
+    "@lmnr-ai/lmnr": "^0.8.31",
     "ai": "^6.0.202",
     "axios": "^1.17.0",
     "drizzle-orm": "^0.45.2",

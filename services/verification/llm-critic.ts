@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { LLM_CRITIC_PROMPT } from "../../utils/prompts";
+import { getTracer } from '@lmnr-ai/lmnr';
 
 export async function verifyWithCritic(intent: string, workflowJson: any) {
   const prompt = `
@@ -23,6 +24,11 @@ Review the workflow above. Does it perfectly solve the user's intent? Are there 
       feedback: z.string().describe("Specific, actionable feedback on what needs to be fixed. If approved, just provide a short confirmation."),
       })
     }),
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: 'llm_critic',
+      tracer: getTracer()
+    }
   });
 
   return output;

@@ -2,6 +2,11 @@ import { google } from "@ai-sdk/google";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { INTENT_PARSER_PROMPT } from "../../utils/prompts";
+import {Laminar, getTracer} from '@lmnr-ai/lmnr'
+
+Laminar.initialize({
+  projectApiKey: process.env.LMNR_PROJECT_API_KEY
+})
 
 export async function parseIntent(message: string) {
   const { output } = await generateText({
@@ -15,6 +20,11 @@ export async function parseIntent(message: string) {
         actionType: z.enum(["CREATE_NEW", "UPDATE_EXISTING"]).describe("Whether to create a new workflow or update an existing one."),
       })
     }),
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: 'intent_parser',
+      tracer: getTracer()
+    }
   });
 
   return output;

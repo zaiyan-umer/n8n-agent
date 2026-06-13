@@ -14,41 +14,10 @@ export async function POST(req: Request) {
     // 1. Parse Intent
     const { intent, predictedNodes, actionType } = await parseIntent(message);
 
-    // console.log(intent, predictedNodes, actionType);
+    console.log(intent, predictedNodes, actionType);
 
     // 2. Vector DB Lookup
     const contextChunks = await retrieveContext(predictedNodes, intent);
-
-
-  const contextString = contextChunks
-    .map((c) => {
-      const operationStr = c.operation ? ` | Operation: ${c.operation} (${c.operationLabel || "N/A"})` : "";
-      return `--- NODE: ${c.displayName} (${c.nodeType})${operationStr} ---\n${c.chunkText}`;
-    })
-    .join("\n\n");
-
-  const fullPrompt = `
-User Message: ${message}
-Parsed Intent: ${intent}
-Predicted Nodes: ${predictedNodes.join(", ")}
-
-
-Technical Context (Available Node Documentation):
-${contextString}
-
-Generate a complete, valid n8n workflow JSON based on this context.
-  `.trim();
-
-
-  console.log(fullPrompt);
-
-
-  return;
-  
-
-
-
-
 
     // Self-Correction Loop (Max 3 retries)
     let finalWorkflow = null;
@@ -59,7 +28,12 @@ Generate a complete, valid n8n workflow JSON based on this context.
       attempts++;
 
       // 3. Generate Workflow
-      const workflowJson = await generateWorkflow(message, intent, contextChunks);
+      const workflowJson = await generateWorkflow(message, intent, predictedNodes, contextChunks);
+
+      console.log(workflowJson);
+
+      return;
+      
 
       // 4. Syntax Verification
       const syntaxCheck = await verifySyntax(workflowJson);
