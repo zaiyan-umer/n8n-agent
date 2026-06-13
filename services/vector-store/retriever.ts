@@ -1,6 +1,6 @@
 import { db } from "../../db/connection";
 import { nodeChunks } from "../../db/schema/node_chunks";
-import { cosineDistance, desc, gt, sql } from "drizzle-orm";
+import { cosineDistance, desc, gt, sql, and, eq } from "drizzle-orm";
 import { embed } from "ai";
 import { google } from "@ai-sdk/google";
 
@@ -22,8 +22,8 @@ export type RetrievedChunk = {
 export async function retrieveContext(
   nodes: string[],
   intent: string,
-  limit: number = 5,
-  threshold: number = 0.75
+  limit: number = 3,
+  threshold: number = 0.60
 ): Promise<RetrievedChunk[]> {
   // Combine intent and predicted nodes for a semantic search query
   const searchQuery = `Nodes: ${nodes.join(", ")}. Intent: ${intent}`;
@@ -41,21 +41,51 @@ export async function retrieveContext(
   )})`;
 
   // 3. Perform KNN search
-  const results = await db
-    .select({
-      id: nodeChunks.id,
-      nodeType: nodeChunks.nodeType,
-      displayName: nodeChunks.displayName,
-      operation: nodeChunks.operation,
-      operationLabel: nodeChunks.operationLabel,
-      docsUrl: nodeChunks.docsUrl,
-      chunkText: nodeChunks.chunkText,
-      similarity,
-    })
-    .from(nodeChunks)
-    .where(gt(similarity, threshold))
-    .orderBy((t) => desc(t.similarity))
-    .limit(limit);
+  let allResults: RetrievedChunk[] = [];
 
-  return results;
+  if (nodes && nodes.length > 0) {
+    // If nodes are predicted, get the top chunks for EACH node to guarantee representation
+    const nodePromises = nodes.map(async (nodeType) => {
+      return await db
+        .select({
+          id: nodeChunks.id,
+          nodeType: nodeChunks.nodeType,
+          displayName: nodeChunks.displayName,
+          operation: nodeChunks.operation,
+          operationLabel: nodeChunks.operationLabel,
+          docsUrl: nodeChunks.docsUrl,
+          chunkText: nodeChunks.chunkText,
+          similarity,
+        })
+        .from(nodeChunks)
+        .where(and(eq(nodeChunks.nodeType, nodeType), gt(similarity, threshold)))
+        .orderBy((t) => desc(t.similarity))
+        .limit(limit);
+    });
+
+    const resultsArrays = await Promise.all(nodePromises);
+    allResults = resultsArrays.flat();
+  } else {
+    // Fallback: global search if no specific nodes predicted
+    allResults = await db
+      .select({
+        id: nodeChunks.id,
+        nodeType: nodeChunks.nodeType,
+        displayName: nodeChunks.displayName,
+        operation: nodeChunks.operation,
+        operationLabel: nodeChunks.operationLabel,
+        docsUrl: nodeChunks.docsUrl,
+        chunkText: nodeChunks.chunkText,
+        similarity,
+      })
+      .from(nodeChunks)
+      .where(gt(similarity, threshold))
+      .orderBy((t) => desc(t.similarity))
+      .limit(limit);
+  }
+
+  // Sort the final combined results by similarity just to keep the most relevant ones at top
+  allResults.sort((a, b) => b.similarity - a.similarity);
+
+  return allResults;
 }
