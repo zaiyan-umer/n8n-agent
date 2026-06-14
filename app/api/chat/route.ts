@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
+import { sanitizeNodeIds } from '../../../utils/sanitize';
 import { deployWorkflow } from '../../../services/deployment/deploy';
 import { generateWorkflow } from '../../../services/generator/workflow';
 import { parseIntent } from '../../../services/parser/intent';
@@ -7,28 +7,19 @@ import { retrieveContext } from '../../../services/vector-store/retriever';
 import { verifyWithCritic } from '../../../services/verification/llm-critic';
 import { verifySyntax } from '../../../services/verification/syntax';
 
-function sanitizeNodeIds(workflow: any) {
-  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  
-  if (workflow.nodes && Array.isArray(workflow.nodes)) {
-    workflow.nodes = workflow.nodes.map((node: any) => ({
-      ...node,
-      id: UUID_REGEX.test(node.id ?? '') ? node.id : uuidv4()
-    }));
-  }
-  
-  return workflow;
-}
+
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { message } = body;
 
+    if (!message?.trim()) {
+      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+    }
+
     // 1. Parse Intent
     const { intent, predictedNodes, actionType, suggestedName } = await parseIntent(message);
-
-    console.log(intent, predictedNodes, actionType, suggestedName);
 
     // 2. Vector DB Lookup
     const contextChunks = await retrieveContext(predictedNodes, intent);
@@ -58,7 +49,7 @@ export async function POST(req: Request) {
       }
 
       // 5. LLM Critic Verification
-      const criticCheck = await verifyWithCritic(intent, predictedNodes, workflowJson);
+      const criticCheck = await verifyWithCritic(intent, message, predictedNodes, workflowJson);
       if (!criticCheck.isApproved) {
         console.warn(`Attempt ${attempts}: Critic verification failed. Feedback: ${criticCheck.feedback}`);
         feedback = `Logic Feedback: ${criticCheck.feedback}`;
@@ -69,13 +60,13 @@ export async function POST(req: Request) {
       // Passed all checks
       finalWorkflow = workflowJson;
 
-      require('fs').writeFileSync('debug-workflow.json', JSON.stringify(finalWorkflow, null, 2));
-
       // 6. Deploy Workflow
       const deployment = await deployWorkflow(finalWorkflow);
+
       if (!deployment.success) {
         console.warn(`Attempt ${attempts}: Deployment failed.`);
-        finalWorkflow = null;
+        feedback = `Deployment Error: ${deployment.error}. Check node parameter validity.`;
+        brokenWorkflow = workflowJson;
         continue;
       }
     }
@@ -83,7 +74,8 @@ export async function POST(req: Request) {
     if (!finalWorkflow) {
       return NextResponse.json({
         role: "assistant",
-        content: "I tried to generate a workflow but couldn't verify it after 3 attempts.",
+        content: `Failed after ${maxAttempts} attempts. Last error: ${feedback}`,
+        debug: { lastWorkflow: brokenWorkflow }
       });
     }
 
@@ -92,6 +84,7 @@ export async function POST(req: Request) {
       role: "assistant",
       content: `I have successfully wired the pipeline and generated your workflow!\n\n\`\`\`json\n${JSON.stringify(finalWorkflow, null, 2)}\n\`\`\``,
     });
+    
   } catch (error) {
     console.error('Error in pipeline:', error);
     return NextResponse.json(

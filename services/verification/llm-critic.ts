@@ -4,9 +4,11 @@ import { z } from "zod";
 import { LLM_CRITIC_PROMPT } from "../../utils/prompts";
 import { getTracer } from '@lmnr-ai/lmnr';
 
-export async function verifyWithCritic(intent: string, predictedNodes: string[], workflowJson: any) {
+export async function verifyWithCritic(intent: string, originalQuery: string, predictedNodes: string[], workflowJson: any) {
   const prompt = `
-User Intent: ${intent}
+ORIGINAL REQUEST: ${originalQuery}
+PARSED INTENT: ${intent}
+If they conflict, ORIGINAL REQUEST takes priority.
 
 Generated Workflow JSON:
 ${JSON.stringify(workflowJson, null, 2)}
