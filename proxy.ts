@@ -8,19 +8,27 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export async function proxy(req: NextRequest) {
   const token = req.cookies.get('token')?.value;
+  const isApiRoute = req.nextUrl.pathname.startsWith('/api/');
+
+  const handleUnauthorized = () => {
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL('/login', req.url));
+  };
 
   if (!token) {
-    return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
+    return handleUnauthorized();
   }
 
   try {
     await jwtVerify(token, JWT_SECRET);
     return NextResponse.next();
   } catch (error) {
-    return NextResponse.json({ error: 'Unauthorized: Invalid or expired token' }, { status: 401 });
+    return handleUnauthorized();
   }
 }
 
 export const config = {
-  matcher: ['/api/chat/:path*', '/chat/:path*'],
+  matcher: ['/', '/api/chat/:path*', '/chat/:path*'],
 };
