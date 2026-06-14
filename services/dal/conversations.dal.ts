@@ -12,3 +12,14 @@ export const getConversationsByUserId = async (userId: string) => {
     .where(eq(conversations.userId, userId))
     .orderBy(desc(conversations.createdAt));
 };
+
+export const createConversation = async (userId: string, name: string) => {
+  const [newConversation] = await db
+    .insert(conversations)
+    .values({
+      userId,
+      name,
+    })
+    .returning();
+  return newConversation;
+};
