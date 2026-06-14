@@ -18,6 +18,7 @@ export async function parseIntent(message: string) {
         intent: z.string().describe("A clear, summarized description of the user's goal."),
         predictedNodes: z.array(z.string()).describe("An array of standard n8n node names required for this workflow."),
         actionType: z.enum(["CREATE_NEW", "UPDATE_EXISTING"]).describe("Whether to create a new workflow or update an existing one."),
+        suggestedName: z.string().describe("A short, descriptive name for the workflow based on the intent.")
       })
     }),
     experimental_telemetry: {

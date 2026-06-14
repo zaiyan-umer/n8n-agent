@@ -12,9 +12,9 @@ export async function POST(req: Request) {
     const { message } = body;
 
     // 1. Parse Intent
-    const { intent, predictedNodes, actionType } = await parseIntent(message);
+    const { intent, predictedNodes, actionType, suggestedName } = await parseIntent(message);
 
-    console.log(intent, predictedNodes, actionType);
+    console.log(intent, predictedNodes, actionType, suggestedName);
 
     // 2. Vector DB Lookup
     const contextChunks = await retrieveContext(predictedNodes, intent);
@@ -31,6 +31,7 @@ export async function POST(req: Request) {
 
       // 3. Generate Workflow
       const workflowJson = await generateWorkflow(message, intent, predictedNodes, contextChunks, feedback, brokenWorkflow);
+      workflowJson.name = suggestedName;
 
       // 4. Syntax Verification
       const syntaxCheck = await verifySyntax(workflowJson);
