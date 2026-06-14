@@ -7,7 +7,6 @@ import { getTracer } from '@lmnr-ai/lmnr';
 export async function verifyWithCritic(intent: string, predictedNodes: string[], workflowJson: any) {
   const prompt = `
 User Intent: ${intent}
-ROUTING RULES: ${predictedNodes.join(" → ")}
 
 Generated Workflow JSON:
 ${JSON.stringify(workflowJson, null, 2)}

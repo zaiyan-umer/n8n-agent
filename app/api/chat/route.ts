@@ -1,10 +1,24 @@
 import { NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
 import { deployWorkflow } from '../../../services/deployment/deploy';
 import { generateWorkflow } from '../../../services/generator/workflow';
 import { parseIntent } from '../../../services/parser/intent';
 import { retrieveContext } from '../../../services/vector-store/retriever';
 import { verifyWithCritic } from '../../../services/verification/llm-critic';
 import { verifySyntax } from '../../../services/verification/syntax';
+
+function sanitizeNodeIds(workflow: any) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  
+  if (workflow.nodes && Array.isArray(workflow.nodes)) {
+    workflow.nodes = workflow.nodes.map((node: any) => ({
+      ...node,
+      id: UUID_REGEX.test(node.id ?? '') ? node.id : uuidv4()
+    }));
+  }
+  
+  return workflow;
+}
 
 export async function POST(req: Request) {
   try {
@@ -32,6 +46,7 @@ export async function POST(req: Request) {
       // 3. Generate Workflow
       const workflowJson = await generateWorkflow(message, intent, predictedNodes, contextChunks, feedback, brokenWorkflow);
       workflowJson.name = suggestedName;
+      sanitizeNodeIds(workflowJson);
 
       // 4. Syntax Verification
       const syntaxCheck = await verifySyntax(workflowJson);

@@ -2,11 +2,28 @@
  * System prompts for the various LLM services in the n8n agent pipeline.
  */
 
-export const INTENT_PARSER_PROMPT = `You are an expert n8n workflow architect. 
-Your goal is to parse the user's request and determine their exact intent.
-You must extract the core goal and predict the exact n8n nodes required to build this workflow.
-Use standard n8n node names (e.g., "Webhook", "Postgres", "OpenAI", "Google Sheets").
-If the user provides an existing workflow context, determine whether they are asking to CREATE a new workflow from scratch, or UPDATE the existing workflow.`;
+export const INTENT_PARSER_PROMPT = `You are an expert n8n workflow architect.
+Your goal is to parse the user's request and extract structured information for workflow generation.
+
+Rules for predicting nodes:
+- Only predict nodes that directly map to services, triggers, or logic explicitly mentioned in the user's intent.
+- Always include exactly ONE trigger node (e.g. "Schedule Trigger", "Webhook", "Email Trigger").
+- Do NOT predict infrastructure/utility nodes: Error Trigger, No Op, Stop And Error, Execute Workflow. Error handling strategy is decided by the workflow generator.
+- Use standard n8n display names exactly (e.g. "Webhook", "Google Sheets", "Gmail", "Slack", "OpenAI").
+- If the intent requires ANY node to receive data from BOTH branches of a conditional 
+  (e.g. "always notify X regardless of condition"), predict a "Merge" node.
+
+If the user provides an existing workflow, determine:
+- CREATE_NEW: building from scratch
+- UPDATE_EXISTING: modifying the existing workflow
+
+Respond ONLY in this JSON format with no preamble or markdown:
+{
+  "intent": "<Faithful restatement of ALL actions the user wants. Do NOT compress or summarize. Preserve every service, condition, and action explicitly mentioned.>",
+  "predictedNodes": ["Node1", "Node2", "Node3"],
+  "actionType": "CREATE_NEW" | "UPDATE_EXISTING",
+  "suggestedName": "A short, descriptive name for the workflow based on the intent."
+}`;
 
 export const WORKFLOW_GENERATOR_PROMPT = `You are a highly skilled n8n workflow generation engine.
 Your task is to output a valid, functional n8n workflow JSON based on the user's intent and the provided technical context (node documentation and schemas).
@@ -20,6 +37,9 @@ CRITICAL JSON STRUCTURE RULES:
 4. ALL nodes use "main" as the ONLY valid connection key. 
    Multiple outputs = multiple arrays inside "main": main[0], main[1], etc.
    Keys like "true", "false", "yes", "no", "error" are NEVER valid.
+5. FAN-OUT PATTERN: When a node must receive data from BOTH branches of an If node,
+   insert a Merge node. Connect If main[0] → Merge index 0, If main[1] → Merge index 1,
+   then Merge → final node. Do NOT place the final node before the If to avoid this.
 
 If an existing workflow JSON is provided as context, you must MODIFY that workflow to fulfill the new intent rather than starting from scratch.
 
