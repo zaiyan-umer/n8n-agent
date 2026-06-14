@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { apiClient } from "../utils/apiClient";
+
 type Message = {
   role: "user" | "assistant";
   content: string;
@@ -11,6 +14,18 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch the current user on mount and cache it for 5 minutes
+  const { data: user, isLoading: isUserLoading } = useQuery({
+    queryKey: ["authUser"],
+    queryFn: async () => {
+      const res = await axios.get("/api/auth/me");
+      return res.data.user;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000,
+    retry: false, // Don't retry if the user is unauthenticated (e.g. 401)
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +54,17 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-[#131314] text-gray-800 dark:text-gray-200 font-sans transition-colors">
       {/* Header */}
       <header className="flex items-center px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1E1F20]">
-        <h1 className="text-xl font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">
+        <h1 className="text-xl font-semibold bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent flex-1">
           AI Assistant
         </h1>
+        {user && (
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300">
+            <span className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-500 border border-indigo-500/20 uppercase">
+              {user.email.charAt(0)}
+            </span>
+            <span className="hidden sm:inline">{user.email}</span>
+          </div>
+        )}
       </header>
 
       {/* Chat Area */}
