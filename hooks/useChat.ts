@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { apiClient } from "@/utils/apiClient";
+import { useEffect, useState } from "react";
 
 export type Message = {
   id?: string;

@@ -1,9 +1,8 @@
 import { google } from "@ai-sdk/google";
-import { generateText, Output } from "ai";
-import { z } from "zod";
+import { getTracer } from '@lmnr-ai/lmnr';
+import { generateText } from "ai";
 import { WORKFLOW_GENERATOR_PROMPT } from "../../utils/prompts";
 import { RetrievedChunk } from "../vector-store/retriever";
-import { getTracer } from '@lmnr-ai/lmnr';
 
 export async function generateWorkflow(message: string, intent: string, predictedNodes: string[], context: RetrievedChunk[], feedback?: string, previousWorkflow?: any, sendEvent?: (type: string, data: any) => void) {
   // Format the retrieved technical documentation for the LLM prompt
