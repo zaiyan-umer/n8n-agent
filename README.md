@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# n8n Agent AI
+
+n8n Agent AI is an intelligent, autonomous agent designed to build, verify, and update [n8n](https://n8n.io/) workflows through natural language. 
+
+Instead of manually dragging and dropping nodes, users can simply describe the automation they need (e.g., *"Create a workflow that fetches unread emails from Gmail and posts them to a Slack channel"*). The agent intelligently queries a vector database of n8n node documentation, generates the workflow JSON, verifies its syntax, self-corrects using an LLM Critic, and streams the entire process back to the user in real-time.
+
+![Agent UI Placeholder](https://via.placeholder.com/800x450.png?text=Agent+UI+Screenshot+Goes+Here)
+*The n8n Agent AI streaming its internal thought process and generating workflows.*
+
+![Deployed Workflow Placeholder](https://via.placeholder.com/800x450.png?text=Deployed+Workflow+Screenshot+Goes+Here)
+*The fully deployed and syntax-verified workflow running inside n8n.*
+
+---
+
+## Key Features
+
+### 🧠 Intelligent Workflow Generation
+Powered by the Vercel AI SDK and Gemini models, the agent doesn't just guess n8n JSON structures. It uses a **Retrieval-Augmented Generation (RAG)** approach to fetch the exact schema and parameter requirements for requested nodes, ensuring high-fidelity outputs.
+
+### 🔄 Multi-Stage Self-Correction Pipeline
+The agent operates using a robust pipeline to guarantee workflow validity:
+1. **Intent Parsing**: Determines if the user is asking to create a *new* workflow or update an *existing* one.
+2. **Vector Retrieval**: Queries PostgreSQL (via `pgvector`) to pull exact documentation for the requested integration nodes.
+3. **Generation**: Drafts the initial n8n workflow JSON.
+4. **Syntax Verification**: A deterministic engine checks for broken node connections, missing required fields, or cyclic loops.
+5. **LLM Critic**: An independent LLM evaluates the generated workflow against the original user prompt. If the critic finds issues, it feeds the errors back into the generator for a self-correction loop.
+
+### ⚡ Real-Time Thought Streaming
+Gone are the days of staring at a loading spinner. The backend pipeline is fully streamed to the frontend via **Server-Sent Events (SSE)**. Users can watch the agent's internal "thinking" process in real-time—seeing when it retrieves data, when it verifies syntax, and when it deploys.
+
+### 📊 Full Observability
+Deeply integrated with **Laminar AI**, every step of the agent's pipeline—from intent classification to final generation—is traced and logged. This ensures complete observability into latency, token usage, and LLM decision-making.
+
+---
+
+## Tech Stack
+
+- **Frontend Framework:** Next.js (App Router) & React
+- **AI Orchestration:** Vercel AI SDK
+- **LLM Provider:** Google Gemini (`gemini-3.5-flash` / `gemini-2.5-flash`)
+- **Database & Vector Search:** Neon (PostgreSQL) with `pgvector`
+- **ORM:** Drizzle ORM
+- **Observability:** Laminar AI
+
+---
+
+## Prerequisites
+
+To run this project locally, you will need:
+- Node.js (v18+)
+- A Neon PostgreSQL database instance (with pgvector extension enabled)
+- **An active n8n instance:** You must deploy n8n (either via [Docker](https://docs.n8n.io/hosting/installation/docker/) or [n8n Cloud](https://n8n.io/cloud/)) and generate a Public API key.
+- API Keys for:
+  - Google AI (Gemini)
+  - Laminar AI
 
 ## Getting Started
 
-First, run the development server:
+1. **Install dependencies:**
+   ```bash
+   npm install
+   # or
+   pnpm install
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. **Configure Environment Variables:**
+   Create a `.env` file in the root directory and populate it with your keys:
+   ```env
+   # Database
+   DATABASE_URL="postgresql://user:password@hostname/dbname?sslmode=require"
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   # AI Models
+   GOOGLE_GENERATIVE_AI_API_KEY="your_google_api_key"
+   WORKFLOW_MODEL="gemini-3.1-flash"
+   GENERAL_MODEL="gemini-3.1-flash-lite-preview"
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   # Observability
+   LMNR_PROJECT_API_KEY="your_laminar_key"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   # n8n Integration
+   N8N_URL="http://localhost:5678" # Or your cloud deployment URL
+   N8N_API_KEY="your_n8n_api_key"
+   ```
 
-## Learn More
+3. **Run Database Migrations:**
+   Initialize your Drizzle schema and set up the vector tables.
+   ```bash
+   npm run db:push
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+4. **Start the Development Server:**
+   ```bash
+   npm run dev
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. **Access the Application:**
+   Open [http://localhost:3000](http://localhost:3000) in your browser to interact with the n8n Agent AI.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*Disclaimer: AI can make mistakes. Always verify important workflows before deploying them to a production n8n instance.*
