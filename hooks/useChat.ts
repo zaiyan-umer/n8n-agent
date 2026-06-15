@@ -89,7 +89,10 @@ export function useChat() {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post("/chat", { message: input });
+      const response = await apiClient.post("/chat", { 
+        message: input, 
+        conversation_id: activeConversationId 
+      });
       setMessages((prev) => [...prev, response.data]);
     } catch (error) {
       console.error("Error calling chat API:", error);

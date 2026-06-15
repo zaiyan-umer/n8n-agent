@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, index, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, index, check, integer } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { conversations } from "./conversations";
 
@@ -12,10 +12,13 @@ export const messages = pgTable(
     workflowId: text("workflow_id"),
     intent: text("intent"),
     predictedNodes: jsonb("predicted_nodes"),
+    actionType: text("action_type"),
+    attempts: integer("attempts"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (table) => [
     index("messages_conversation_id_created_at_idx").on(table.conversationId, table.createdAt),
     check("role_check", sql`${table.role} in ('user', 'assistant')`),
+    check("action_type_check", sql`${table.actionType} in ('CREATE_NEW', 'UPDATE_EXISTING')`), // ADD
   ]
 );

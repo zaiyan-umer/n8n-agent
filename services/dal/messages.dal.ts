@@ -17,6 +17,8 @@ export const insertMessage = async (data: {
   workflowId?: string;
   intent?: string;
   predictedNodes?: any;
+  actionType?:string;
+  attempts?:number
 }) => {
   return await db.insert(messages).values(data).returning();
 };
