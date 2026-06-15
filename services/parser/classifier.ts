@@ -46,7 +46,9 @@ export async function classifyAction(message: string, history: HistoryMessage[])
   const lowerMessage = message.toLowerCase();
 
   // explicit create keywords → always CREATE
-  if (createKeywords.some(k => lowerMessage.includes(k))) return 'CREATE_NEW';
+  if (createKeywords.some(k => lowerMessage.includes(k))) {
+    return 'CREATE_NEW';
+  }
 
   // update keywords + workflow exists in history → UPDATE
   if (updateKeywords.some(k => lowerMessage.includes(k)) && hasWorkflowInHistory) {
@@ -54,8 +56,11 @@ export async function classifyAction(message: string, history: HistoryMessage[])
   }
 
   // no workflow in history → can only be CREATE
-  if (!hasWorkflowInHistory) return 'CREATE_NEW';
+  if (!hasWorkflowInHistory) {
+    return 'CREATE_NEW';
+  }
 
   // ambiguous → fallback to LLM
-  return classifyWithLLM(message, history);
+  const llmResult = await classifyWithLLM(message, history);
+  return llmResult;
 }

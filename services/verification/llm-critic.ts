@@ -4,10 +4,22 @@ import { z } from "zod";
 import { LLM_CRITIC_PROMPT } from "../../utils/prompts";
 import { getTracer } from '@lmnr-ai/lmnr';
 
-export async function verifyWithCritic(intent: string, originalQuery: string, predictedNodes: string[], workflowJson: any) {
-  const prompt = `
+export async function verifyWithCritic(intent: string, originalQuery: string, predictedNodes: string[], workflowJson: any, originalIntent?: string) {
+  let prompt = `
 ORIGINAL REQUEST: ${originalQuery}
 PARSED INTENT: ${intent}
+PREDICTED NODES: ${predictedNodes.join(", ")}
+(Note: PREDICTED NODES is just a helpful roadmap. Do NOT reject the workflow simply because it uses different nodes, as long as it logically fulfills the original request).
+`;
+
+  if (originalIntent) {
+    prompt += `
+ORIGINAL WORKFLOW INTENT (Before Update): ${originalIntent}
+NOTE: The user is UPDATING an existing workflow. Ensure the final workflow still fulfills the ORIGINAL WORKFLOW INTENT while also incorporating the new PARSED INTENT changes.
+`;
+  }
+
+  prompt += `
 If they conflict, ORIGINAL REQUEST takes priority.
 
 Generated Workflow JSON:

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { message, conversation_id } = body;
-
+    
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }

@@ -83,7 +83,7 @@ export async function handleCreate({
       continue;
     }
 
-    finalWorkflow = workflowJson;
+    finalWorkflow = deployment.data;
   }
 
   if (!finalWorkflow) {
