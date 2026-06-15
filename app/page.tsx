@@ -120,8 +120,33 @@ export default function Home() {
                             : "bg-white dark:bg-[#1E1F20] text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-800 shadow-sm rounded-bl-none"
                         }`}
                       >
+                        {msg.role === "assistant" && msg.thinking && msg.thinking.length > 0 && (
+                          <div className="mb-3">
+                            {!msg.isComplete ? (
+                              <div className="space-y-1.5 pb-3 border-b border-gray-100 dark:border-gray-800">
+                                {msg.thinking.map((thought, i) => (
+                                  <div key={i} className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                                    {thought}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <details className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer pb-2 mb-2 border-b border-gray-100 dark:border-gray-800">
+                                <summary className="font-medium hover:text-gray-700 dark:hover:text-gray-300 select-none outline-none">
+                                  View thought process
+                                </summary>
+                                <div className="mt-2 pl-3 space-y-1 border-l-2 border-gray-200 dark:border-gray-700">
+                                  {msg.thinking.map((thought, i) => (
+                                    <div key={i} className="py-0.5">{thought}</div>
+                                  ))}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        )}
                         <p className="whitespace-pre-wrap leading-relaxed">
-                          {msg.content}
+                          {msg.content || (!msg.isComplete && msg.thinking && msg.thinking.length > 0 ? "..." : "")}
                         </p>
                       </div>
                     </div>

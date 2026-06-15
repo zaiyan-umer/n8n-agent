@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { retrieveContext } from '../vector-store/retriever';
 import { generateWorkflow } from '../generator/workflow';
 import { sanitizeNodeIds } from '../../utils/sanitize';
@@ -13,15 +12,17 @@ export async function handleCreate({
   intent, 
   predictedNodes, 
   suggestedName, 
-  conversation_id 
+  conversation_id,
+  sendEvent
 }: { 
   message: string, 
   intent: string, 
   predictedNodes: string[], 
   suggestedName: string, 
-  conversation_id?: string 
+  conversation_id?: string,
+  sendEvent: (type: string, data: any) => void
 }) {
-  // 2. Vector DB Lookup
+  sendEvent('thinking', { message: 'Retrieving context for predicted nodes...' });
   let contextChunks = await retrieveContext(predictedNodes, intent);
 
   // Self-Correction Loop (Max 3 retries)
@@ -34,7 +35,7 @@ export async function handleCreate({
   while (attempts < maxAttempts && !finalWorkflow) {
     attempts++;
 
-    // 3. Generate Workflow
+    sendEvent('thinking', { message: `Attempt ${attempts}: Generating workflow JSON...` });
     const workflowJson = await generateWorkflow(
       message,
       intent,
@@ -46,23 +47,24 @@ export async function handleCreate({
     workflowJson.name = suggestedName;
     sanitizeNodeIds(workflowJson);
 
-    // 4. Syntax Verification
+    sendEvent('thinking', { message: `Attempt ${attempts}: Verifying syntax...` });
     const syntaxCheck = await verifySyntax(workflowJson);
     if (!syntaxCheck.isValid) {
-      console.warn(`Attempt ${attempts}: Syntax verification failed. Error: ${syntaxCheck.error}`);
+      sendEvent('thinking', { message: `Syntax error found: ${syntaxCheck.error}. Retrying...` });
       feedback = `Syntax Error: ${syntaxCheck.error}`;
       brokenWorkflow = workflowJson;
       continue;
     }
 
-    // 5. LLM Critic Verification
+    sendEvent('thinking', { message: `Attempt ${attempts}: Running logic through Critic...` });
     const criticCheck = await verifyWithCritic(intent, message, predictedNodes, workflowJson);
     if (!criticCheck.isApproved) {
-      console.warn(`Attempt ${attempts}: Critic verification failed. Feedback: ${criticCheck.feedback}`);
+      sendEvent('thinking', { message: `Critic rejected workflow: ${criticCheck.feedback}. Retrying...` });
       feedback = `Logic Feedback: ${criticCheck.feedback}`;
       brokenWorkflow = workflowJson;
 
       if (attempts < maxAttempts) {
+        sendEvent('thinking', { message: `Reparsing intent with critic feedback...` });
         const reparsed = await parseIntent(
           `${message}\n\nPrevious attempt failed. Critic feedback: ${criticCheck.feedback}`
         );
@@ -74,10 +76,10 @@ export async function handleCreate({
       continue;
     }
 
-    // 6. Deploy Workflow
+    sendEvent('thinking', { message: `Attempt ${attempts}: Deploying to n8n...` });
     const deployment = await deployWorkflow(workflowJson);
     if (!deployment.success) {
-      console.warn(`Attempt ${attempts}: Deployment failed.`);
+      sendEvent('thinking', { message: `Deployment failed: ${deployment.error}. Retrying...` });
       feedback = `Deployment Error: ${deployment.error}. Check node parameter validity.`;
       brokenWorkflow = workflowJson;
       continue;
@@ -95,18 +97,21 @@ export async function handleCreate({
         content: assistantMessageContent
       });
     }
-    return NextResponse.json({
+    sendEvent('message', {
       role: "assistant",
       content: assistantMessageContent,
-      ...(process.env.NODE_ENV === 'development' && { debug: { lastWorkflow: brokenWorkflow } })
+      meta: { error: feedback }
     });
+    return;
   }
 
   if (process.env.NODE_ENV === 'development') {
     require('fs').writeFileSync('debug-workflow.json', JSON.stringify(finalWorkflow, null, 2));
   }
 
+  sendEvent('thinking', { message: 'Workflow deployed successfully! Finalizing...' });
   const assistantContent = `I've successfully generated your workflow '${suggestedName}'!`;
+  
   if (conversation_id) {
     await insertMessage({
       conversationId: conversation_id,
@@ -120,7 +125,7 @@ export async function handleCreate({
     });
   }
 
-  return NextResponse.json({
+  sendEvent('message', {
     role: "assistant",
     content: assistantContent,
     meta: { attempts, workflowId: finalWorkflow.id }

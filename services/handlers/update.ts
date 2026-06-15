@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { insertMessage } from '../dal/messages.dal';
 import { sanitizeNodeIds } from '@/utils/sanitize';
 import { verifySyntax } from '../verification/syntax';
@@ -13,32 +12,31 @@ export async function handleUpdate({
   intent,
   predictedNodes,
   history,
-  conversation_id
+  conversation_id,
+  sendEvent
 }: {
   message: string,
   intent: string,
   predictedNodes: string[],
   history: any[],
-  conversation_id?: string
+  conversation_id?: string,
+  sendEvent: (type: string, data: any) => void
 }) {
-  const assistantContent = `I understand you want to update the workflow. I'm preparing to modify it...`;
-
-
   const lastAssistantMsg = history
     .filter(m => m.role === 'assistant' && m.workflowId)
     .at(-1);
 
   if (!lastAssistantMsg?.workflowId) {
-    return NextResponse.json({
-      error: 'No previous workflow found to update.'
-    }, { status: 400 });
+    sendEvent('error', { error: 'No previous workflow found to update.' });
+    return;
   }
 
+  sendEvent('thinking', { message: 'Fetching existing workflow from n8n...' });
   const currentWorkflow = await fetchWorkflowFromN8n(lastAssistantMsg.workflowId);
   const originalIntent = lastAssistantMsg.intent;
 
+  sendEvent('thinking', { message: 'Retrieving context for modified nodes...' });
   let contextChunks = await retrieveContext(predictedNodes, intent);
-
 
   let finalWorkflow = null;
   let attempts = 0;
@@ -46,10 +44,10 @@ export async function handleUpdate({
   let brokenWorkflow = currentWorkflow;
   const maxAttempts = 3;
 
-
   while (attempts < maxAttempts && !finalWorkflow) {
     attempts++;
 
+    sendEvent('thinking', { message: `Attempt ${attempts}: Generating workflow JSON patch...` });
     const workflowJson = await generateWorkflow(
       message,
       intent,
@@ -61,13 +59,16 @@ export async function handleUpdate({
 
     sanitizeNodeIds(workflowJson);
 
+    sendEvent('thinking', { message: `Attempt ${attempts}: Verifying syntax...` });
     const syntaxCheck = await verifySyntax(workflowJson);
     if (!syntaxCheck.isValid) {
+      sendEvent('thinking', { message: `Syntax error found: ${syntaxCheck.error}. Retrying...` });
       feedback = `Syntax Error: ${syntaxCheck.error}`;
       brokenWorkflow = workflowJson;
       continue;
     }
 
+    sendEvent('thinking', { message: `Attempt ${attempts}: Running logic through Critic...` });
     const criticCheck = await verifyWithCritic(
       intent,          // what changed
       message,         // raw user message
@@ -77,10 +78,12 @@ export async function handleUpdate({
     );
 
     if (!criticCheck.isApproved) {
+      sendEvent('thinking', { message: `Critic rejected workflow: ${criticCheck.feedback}. Retrying...` });
       feedback = `Logic Feedback: ${criticCheck.feedback}`;
       brokenWorkflow = workflowJson;
 
       if (attempts < maxAttempts) {
+        sendEvent('thinking', { message: `Reparsing intent with critic feedback...` });
         const reparsed = await parseIntent(message, history, 'UPDATE_EXISTING');
         predictedNodes = reparsed.predictedNodes;
         contextChunks = await retrieveContext(reparsed.predictedNodes, reparsed.intent);
@@ -89,8 +92,10 @@ export async function handleUpdate({
     }
 
     // deploy via PUT not POST
+    sendEvent('thinking', { message: `Attempt ${attempts}: Deploying update to n8n...` });
     const deployment = await deployWorkflow(workflowJson, lastAssistantMsg.workflowId);
     if (!deployment.success) {
+      sendEvent('thinking', { message: `Deployment failed: ${deployment.error}. Retrying...` });
       feedback = `Deployment Error: ${deployment.error}`;
       brokenWorkflow = workflowJson;
       continue;
@@ -99,6 +104,25 @@ export async function handleUpdate({
     finalWorkflow = deployment.data;
   }
 
+  if (!finalWorkflow) {
+    const errorMsg = `Failed to update after ${maxAttempts} attempts. Last error: ${feedback}`;
+    if (conversation_id) {
+      await insertMessage({
+        conversationId: conversation_id,
+        role: "assistant",
+        content: errorMsg
+      });
+    }
+    sendEvent('message', {
+      role: "assistant",
+      content: errorMsg,
+      meta: { error: feedback }
+    });
+    return;
+  }
+
+  const assistantContent = `I understand you wanted to update the workflow. I've successfully modified it based on your request.`;
+  
   if (conversation_id) {
     await insertMessage({
       conversationId: conversation_id,
@@ -107,12 +131,13 @@ export async function handleUpdate({
       intent,
       predictedNodes,
       actionType: 'UPDATE_EXISTING',
+      workflowId: finalWorkflow.id
     });
   }
 
-  return NextResponse.json({
+  sendEvent('message', {
     role: "assistant",
     content: assistantContent,
-    meta: {}
+    meta: { attempts, workflowId: finalWorkflow.id }
   });
-} 
+}

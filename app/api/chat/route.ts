@@ -17,37 +17,65 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    const history = await buildConversationHistory(conversation_id);
+    const encoder = new TextEncoder();
 
-    if (conversation_id) {
-      await insertMessage({
-        conversationId: conversation_id,
-        role: "user",
-        content: message
-      });
-    }
+    const stream = new ReadableStream({
+      async start(controller) {
+        const sendEvent = (type: string, data: any) => {
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type, ...data })}\n\n`));
+          } catch (e) {
+            console.error("Failed to enqueue", e);
+          }
+        };
 
-    // 0. Classify Action Type
-    const actionType = await classifyAction(message, history);
+        try {
+          const history = await buildConversationHistory(conversation_id);
 
-    // 1. Parse Intent
-    let { intent, predictedNodes, suggestedName } = await parseIntent(
-      message,
-      actionType === 'UPDATE_EXISTING' ? history : [],
-      actionType
-    );
+          if (conversation_id) {
+            await insertMessage({
+              conversationId: conversation_id,
+              role: "user",
+              content: message
+            });
+          }
 
-    if (actionType === 'UPDATE_EXISTING') {
-      return handleUpdate({ message, intent, predictedNodes, history, conversation_id });
-    }
+          sendEvent('thinking', { message: 'Analyzing request and history...' });
+          const actionType = await classifyAction(message, history);
 
-    return handleCreate({ message, intent, predictedNodes, suggestedName, conversation_id });
+          sendEvent('thinking', { message: `Determined action: ${actionType.replace('_', ' ')}. Parsing required nodes...` });
+          let { intent, predictedNodes, suggestedName } = await parseIntent(
+            message,
+            actionType === 'UPDATE_EXISTING' ? history : [],
+            actionType
+          );
+
+          sendEvent('thinking', { message: `Intent parsed successfully. Predicted nodes: ${predictedNodes.join(', ')}` });
+
+          if (actionType === 'UPDATE_EXISTING') {
+            await handleUpdate({ message, intent, predictedNodes, history, conversation_id, sendEvent });
+          } else {
+            await handleCreate({ message, intent, predictedNodes, suggestedName, conversation_id, sendEvent });
+          }
+
+        } catch (error: any) {
+          console.error('Error in pipeline:', error);
+          sendEvent('error', { error: error?.message || 'Failed to process request' });
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+      },
+    });
 
   } catch (error) {
-    console.error('Error in pipeline:', error);
-    return NextResponse.json(
-      { error: 'Failed to process request' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
 }
