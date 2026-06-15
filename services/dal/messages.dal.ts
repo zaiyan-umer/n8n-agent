@@ -9,3 +9,14 @@ export const getMessagesByConversationId = async (conversationId: string) => {
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.createdAt));
 };
+
+export const insertMessage = async (data: {
+  conversationId: string;
+  role: "user" | "assistant";
+  content: string;
+  workflowId?: string;
+  intent?: string;
+  predictedNodes?: any;
+}) => {
+  return await db.insert(messages).values(data).returning();
+};
