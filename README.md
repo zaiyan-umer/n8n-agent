@@ -4,10 +4,13 @@ n8n Agent AI is an intelligent, autonomous agent designed to build, verify, and 
 
 Instead of manually dragging and dropping nodes, users can simply describe the automation they need (e.g., *"Create a workflow that fetches unread emails from Gmail and posts them to a Slack channel"*). The agent intelligently queries a vector database of n8n node documentation, generates the workflow JSON, verifies its syntax, self-corrects using an LLM Critic, and streams the entire process back to the user in real-time.
 
-![Agent UI Placeholder](https://via.placeholder.com/800x450.png?text=Agent+UI+Screenshot+Goes+Here)
+<img width="1056" height="827" alt="agent-ui" src="https://github.com/user-attachments/assets/72f174d7-8183-4e61-a9e3-2f63bb376240" />
 *The n8n Agent AI streaming its internal thought process and generating workflows.*
 
-![Deployed Workflow Placeholder](https://via.placeholder.com/800x450.png?text=Deployed+Workflow+Screenshot+Goes+Here)
+<br>
+<br>
+
+<img width="1358" height="484" alt="workflow" src="https://github.com/user-attachments/assets/91498cfc-6743-4ce2-af50-f90e96d6cfd2" />
 *The fully deployed and syntax-verified workflow running inside n8n.*
 
 ---
