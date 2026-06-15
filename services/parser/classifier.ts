@@ -13,7 +13,7 @@ export type HistoryMessage = {
   workflowId?: string;
 };
 
-export async function classifyWithLLM(message: string, history: HistoryMessage[]): Promise<'CREATE_NEW' | 'UPDATE_EXISTING'> {
+export async function classifyAction(message: string, history: HistoryMessage[]): Promise<'CREATE_NEW' | 'UPDATE_EXISTING'> {
   const messagesArray = history.map(msg => ({
     role: msg.role as 'user' | 'assistant',
     content: msg.content
@@ -35,32 +35,4 @@ export async function classifyWithLLM(message: string, history: HistoryMessage[]
   });
 
   return object.actionType;
-}
-
-export async function classifyAction(message: string, history: HistoryMessage[]): Promise<'CREATE_NEW' | 'UPDATE_EXISTING'> {
-  const hasWorkflowInHistory = history.some(m => m.workflowId);
-
-  const updateKeywords = ['update', 'modify', 'change', 'add to', 'remove', 'edit', 'also', 'instead', 'now also'];
-  const createKeywords = ['new workflow', 'create', 'build', 'make', 'generate'];
-
-  const lowerMessage = message.toLowerCase();
-
-  // explicit create keywords → always CREATE
-  if (createKeywords.some(k => lowerMessage.includes(k))) {
-    return 'CREATE_NEW';
-  }
-
-  // update keywords + workflow exists in history → UPDATE
-  if (updateKeywords.some(k => lowerMessage.includes(k)) && hasWorkflowInHistory) {
-    return 'UPDATE_EXISTING';
-  }
-
-  // no workflow in history → can only be CREATE
-  if (!hasWorkflowInHistory) {
-    return 'CREATE_NEW';
-  }
-
-  // ambiguous → fallback to LLM
-  const llmResult = await classifyWithLLM(message, history);
-  return llmResult;
 }

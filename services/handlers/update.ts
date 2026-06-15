@@ -54,7 +54,8 @@ export async function handleUpdate({
       predictedNodes,
       contextChunks,
       feedback,
-      brokenWorkflow
+      brokenWorkflow,
+      sendEvent
     );
 
     sanitizeNodeIds(workflowJson);

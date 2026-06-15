@@ -5,7 +5,7 @@ import { WORKFLOW_GENERATOR_PROMPT } from "../../utils/prompts";
 import { RetrievedChunk } from "../vector-store/retriever";
 import { getTracer } from '@lmnr-ai/lmnr';
 
-export async function generateWorkflow(message: string, intent: string, predictedNodes: string[], context: RetrievedChunk[], feedback?: string, previousWorkflow?: any) {
+export async function generateWorkflow(message: string, intent: string, predictedNodes: string[], context: RetrievedChunk[], feedback?: string, previousWorkflow?: any, sendEvent?: (type: string, data: any) => void) {
   // Format the retrieved technical documentation for the LLM prompt
   const contextString = context
     .map((c) => {
@@ -40,16 +40,38 @@ ${JSON.stringify(previousWorkflow, null, 2)}
 
   fullPrompt += `\nGenerate a complete, valid n8n workflow JSON based on this context.`.trim();
 
-  const { text } = await generateText({
-    model: google(process.env.WORKFLOW_MODEL || "gemini-2.5-flash"),
-    system: WORKFLOW_GENERATOR_PROMPT,
-    prompt: fullPrompt,
-    experimental_telemetry: {
-      isEnabled: true,
-      functionId: 'workflow_generator',
-      tracer: getTracer()
+  let text = "";
+  let attempts = 0;
+  const maxInternalRetries = 3;
+
+  while (attempts < maxInternalRetries) {
+    attempts++;
+    try {
+      const result = await generateText({
+        model: google(process.env.WORKFLOW_MODEL || "gemini-2.5-flash"),
+        system: WORKFLOW_GENERATOR_PROMPT,
+        prompt: fullPrompt,
+        maxRetries: 0,
+        experimental_telemetry: {
+          isEnabled: true,
+          functionId: 'workflow_generator',
+          tracer: getTracer()
+        }
+      });
+      text = result.text;
+      break;
+    } catch (error: any) {
+      const errMsg = error.message || "Unknown API error";
+      if (sendEvent) {
+        sendEvent("thinking", { message: `AI API error: ${errMsg}. Retrying... (${attempts}/${maxInternalRetries})` });
+      }
+      if (attempts >= maxInternalRetries) {
+        throw new Error(`Failed to generate workflow after ${maxInternalRetries} attempts: ${errMsg}`);
+      }
+      // Wait a moment before retrying
+      await new Promise(res => setTimeout(res, 1000));
     }
-  });
+  }
 
   // Extract JSON block if the model wraps it in markdown
   const jsonMatch = text.match(/```(?:json)?\n([\s\S]*?)\n```/) || text.match(/\{[\s\S]*\}/);

@@ -42,7 +42,8 @@ export async function handleCreate({
       predictedNodes,
       contextChunks,
       feedback,
-      brokenWorkflow
+      brokenWorkflow,
+      sendEvent
     );
     workflowJson.name = suggestedName;
     sanitizeNodeIds(workflowJson);

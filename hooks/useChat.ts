@@ -56,14 +56,32 @@ export function useChat() {
     enabled: !!activeConversationId,
   });
 
+  const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
+
   // Sync local message state with the fetched messages when a conversation is selected
   useEffect(() => {
     if (conversationMessages) {
-      setMessages(conversationMessages.map(m => ({ ...m, isComplete: true })));
+      setMessages(prev => {
+        // If it's a new conversation load, just use the fetched messages
+        if (prev.length === 0 || activeConversationId !== loadedConversationId) {
+          return conversationMessages.map(m => ({ ...m, isComplete: true }));
+        }
+
+        // Otherwise, it's a background refetch. Merge the local 'thinking' state back in so it doesn't disappear
+        return conversationMessages.map(fetchedMsg => {
+          const existingMsg = prev.find(m => m.content === fetchedMsg.content && m.role === fetchedMsg.role);
+          return {
+            ...fetchedMsg,
+            isComplete: true,
+            thinking: existingMsg?.thinking || fetchedMsg.thinking
+          };
+        });
+      });
+      setLoadedConversationId(activeConversationId);
     } else {
       setMessages([]);
     }
-  }, [conversationMessages, activeConversationId]);
+  }, [conversationMessages, activeConversationId, loadedConversationId]);
 
   const handleCreateConversation = async () => {
     if (!newChatName.trim()) return;
