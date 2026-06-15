@@ -1,8 +1,18 @@
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { db } from "../../db/connection";
 import { messages } from "../../db/schema/messages";
 
-export const getMessagesByConversationId = async (conversationId: string) => {
+export const getMessagesByConversationId = async (conversationId: string, limitCount?: number) => {
+  if (limitCount) {
+    const results = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(desc(messages.createdAt))
+      .limit(limitCount);
+    return results.reverse();
+  }
+
   return await db
     .select()
     .from(messages)
