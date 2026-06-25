@@ -89,9 +89,16 @@ To run this project locally, you will need:
    ```
 
 3. **Run Database Migrations:**
-   Initialize your Drizzle schema and set up the vector tables inside the running container:
+   Initialize your Drizzle schema and set up the vector tables.
+   
+   **Option A: If running via Docker Compose**
    ```bash
    docker-compose exec app npm run db:push
+   ```
+   
+   **Option B: If running without Docker**
+   ```bash
+   npm run db:push
    ```
 
 4. **Access the Application:**
