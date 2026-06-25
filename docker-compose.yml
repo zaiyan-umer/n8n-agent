@@ -1,17 +1,30 @@
 version: '3.9'
 
 services:
-    app:
-        build: .
-        ports:
-            - "3000:3000"
-        depends_on:
-            - n8n
-        env_file:
-            - .env
-    n8n:
-        image: n8nio/n8n
-        ports:
-            - "5678:5678"
-        volumes:
-            - /home/zaiyan/n8n_data:/home/node/.n8n
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+      - n8n
+
+  app:
+    build: .
+    expose:
+      - "3000"
+    depends_on:
+      - n8n
+    env_file:
+      - .env
+
+  n8n:
+    image: n8nio/n8n
+    expose:
+      - "5678"
+    environment:
+      - N8N_PATH=/n8n/
+    volumes:
+      - ./n8n_data:/home/node/.n8n

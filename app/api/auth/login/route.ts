@@ -31,11 +31,13 @@ export async function POST(req: Request) {
 
     const { passwordHash, ...userWithoutPassword } = existingUser;
 
+    const isHttps = req.url.startsWith('https://') || req.headers.get('x-forwarded-proto') === 'https';
+
     const cookieStore = await cookies();
     cookieStore.set('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production' && isHttps,
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24 // 1 day in seconds
     });
 
