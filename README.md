@@ -102,8 +102,8 @@ To run this project locally, you will need:
    ```
 
 4. **Access the Application:**
-   - **n8n Agent UI:** Open [http://localhost:3000](http://localhost:3000)
-   - **n8n Instance:** Open [http://localhost:5678](http://localhost:5678)
+   - **n8n Agent UI:** Open [http://localhost](http://localhost)
+   - **n8n Instance:** Open [http://localhost/n8n](http://localhost/n8n)
 
 ---
 
