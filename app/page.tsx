@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { MessageSquare, Plus, Send, Bot, User, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { MessageSquare, Plus, Send, Bot, User, Sparkles, ChevronDown, LogOut } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,17 @@ export default function Home() {
     handleSubmit,
   } = useChat();
 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLElement>(null);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login';
+    } catch (e) {
+      console.error('Logout failed', e);
+    }
+  };
 
   const scrollToBottom = () => {
     if (scrollContainerRef.current) {
@@ -105,11 +116,39 @@ export default function Home() {
             </h1>
           </div>
           {user && (
-            <div className="flex items-center gap-3 text-sm font-medium text-gray-600 dark:text-gray-300">
-              <span className="hidden sm:inline">{user.email}</span>
-              <span className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-500 to-stone-700 flex items-center justify-center text-white shadow-sm uppercase text-xs">
-                {user.email.charAt(0)}
-              </span>
+            <div className="relative">
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors outline-none cursor-pointer"
+              >
+                <span className="hidden sm:inline">{user.email}</span>
+                <span className="w-8 h-8 rounded-full bg-gradient-to-br from-stone-500 to-stone-700 flex items-center justify-center text-white shadow-sm uppercase text-xs">
+                  {user.email.charAt(0)}
+                </span>
+                <ChevronDown 
+                  className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="absolute right-0 mt-3 w-48 bg-white dark:bg-zinc-900 border border-gray-200/50 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-50 origin-top-right"
+                  >
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </header>
