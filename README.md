@@ -50,54 +50,53 @@ Deeply integrated with **Laminar AI**, every step of the agent's pipeline—from
 ## Prerequisites
 
 To run this project locally, you will need:
-- Node.js (v18+)
-- A Neon PostgreSQL database instance (with pgvector extension enabled)
-- **An active n8n instance:** You must deploy n8n (either via [Docker](https://docs.n8n.io/hosting/installation/docker/) or [n8n Cloud](https://n8n.io/cloud/)) and generate a Public API key.
+- Docker and Docker Compose installed on your system.
+- A running PostgreSQL database instance with the `pgvector` extension enabled.
 - API Keys for:
   - Google AI (Gemini)
   - Laminar AI
 
 ## Getting Started
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   # or
-   pnpm install
-   ```
-
-2. **Configure Environment Variables:**
-   Create a `.env` file in the root directory and populate it with your keys:
+1. **Configure Environment Variables:**
+   Create a `.env` file in the root directory and populate it with your keys. Make sure to provide the URL for your PostgreSQL instance with `pgvector` enabled:
    ```env
    # Database
    DATABASE_URL="postgresql://user:password@hostname/dbname?sslmode=require"
 
    # AI Models
    GOOGLE_GENERATIVE_AI_API_KEY="your_google_api_key"
-   WORKFLOW_MODEL="gemini-3.1-flash"
-   GENERAL_MODEL="gemini-3.1-flash-lite-preview"
+   TEXT_EMBEDDING_MODEL=gemini-embedding-001
+   GENERAL_MODEL=gemini-3.1-flash-lite-preview
+   WORKFLOW_MODEL=gemini-3.5-flash
+   CRITIC_MODEL=gemini-2.5-flash
 
    # Observability
    LMNR_PROJECT_API_KEY="your_laminar_key"
 
+   # Auth Secret
+   JWT_SECRET="your_jwt_secret"
+
    # n8n Integration
-   N8N_URL="http://localhost:5678" # Or your cloud deployment URL
+   N8N_URL="http://n8n:5678" 
    N8N_API_KEY="your_n8n_api_key"
    ```
 
+2. **Start the Application:**
+   The `docker-compose.yml` file defines both the Next.js application and the local n8n instance. Start everything by running:
+   ```bash
+   docker-compose up -d --build
+   ```
+
 3. **Run Database Migrations:**
-   Initialize your Drizzle schema and set up the vector tables.
+   Initialize your Drizzle schema and set up the vector tables inside the running container:
    ```bash
-   npm run db:push
+   docker-compose exec app npm run db:push
    ```
 
-4. **Start the Development Server:**
-   ```bash
-   npm run dev
-   ```
-
-5. **Access the Application:**
-   Open [http://localhost:3000](http://localhost:3000) in your browser to interact with the n8n Agent AI.
+4. **Access the Application:**
+   - **n8n Agent UI:** Open [http://localhost:3000](http://localhost:3000)
+   - **n8n Instance:** Open [http://localhost:5678](http://localhost:5678)
 
 ---
 
